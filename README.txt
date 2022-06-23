@@ -1,7 +1,7 @@
 
 ~AutoSmarTrace Manual~
 
-For automated tracing of chains in AFM images or any bright chain-like objects on dark background with or without noise.
+For automated tracing of chains in AFM images or any bright chain-like objects on dark background with or without noise. Integrates with SmarTrace to extract chain persistence lengths.
 
 
 **BEFORE USE**
