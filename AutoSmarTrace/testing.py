@@ -66,6 +66,7 @@ def tester(test):
         test['two'] = None
     test['three'] = magic(3)
     test['four'] = magic(4)
+    test['five'] = magic(5)
     return test
 
 def testing():
@@ -88,6 +89,13 @@ def testing():
             print(' '.join(str(x) for x in row))
     else:
         print(test['four'])
+
+    print('test.five:')
+    if test['five'] is not None:
+        for row in test['five']:
+            print(' '.join(str(x) for x in row))
+    else:
+        print(test['five'])
 
 if __name__ == '__main__':
     testing()
