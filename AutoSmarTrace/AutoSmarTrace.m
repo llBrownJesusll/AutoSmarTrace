@@ -25,7 +25,7 @@ function AutoSmarTrace(input_path,out_filename,nmperpix,varargin)
 
 %{
 flag: Decides when to stop or adjust tracing parameters (incremented in steps of 0.5 or 1)
-pt_sep: Controls how many pointw skipped in each chain's skeleton
+pt_sep: Controls how many points skipped in each chain's skeleton
 varargin: optional parameter, if EM passes skip a larger step (40) cuz EM images might be huge or need sparser sampling
 %}
 
@@ -64,7 +64,13 @@ for im_num = 1:N_images
     disp(['Tracing Image #' num2str(im_num) '...']) %Track the current image number
     %Pull data from imds (imageDatastore), output directory, handles (image info), current image, image filepaths and load it to handles
     handles = load_data(imds, out_filename, handles,im_num,FilePaths);
-    chains = struct;
+    chains = struct; %Create structure to process chains on the image
+
+    %{
+    Call custom pointProcess function to process chains from the images.
+    Different behaviour depending on the optional parameter. If parameter EM, PointProcess takes in Em as a parameter If it does not 
+    exist, PointProcess runs without it and if it is named actin, runs actin in PointProcess
+    %}
     if ~isempty(varargin) && strcmp(varargin{1},'EM') 
         chains1 = PointProcess(handles.A,netv5.net,'EM');
     elseif isempty(varargin)
@@ -73,6 +79,7 @@ for im_num = 1:N_images
         chains1 = PointProcess(handles.A,netv5.net,'actin');
     end
     
+    %Filters out empty chains and assigns the nonempty ones to the chains struct
     N_chains = length(chains1);
     j=1;
     for i2=1:N_chains
@@ -82,6 +89,9 @@ for im_num = 1:N_images
         end
     end
     N_chains = length(chains);
+
+%Start plotting the images 
+    %Framework for the image
     figure(1)
     imshow(handles.A);
     colormap(bone(255));
@@ -89,6 +99,7 @@ for im_num = 1:N_images
         set(gcf,'Position',[300, 150, 700, 700]);
     end
     hold on
+    
     for chain_num = 1:N_chains
         figure(1)
         hold on
@@ -103,6 +114,8 @@ for im_num = 1:N_images
         end
         end
     end
+
+
     if flag == 1.5 
         flag = 1;
         break
