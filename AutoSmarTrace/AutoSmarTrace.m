@@ -23,29 +23,46 @@ function AutoSmarTrace(input_path,out_filename,nmperpix,varargin)
 % Edit the above text to modify the response to help SmarTrace
 
 
+%{
+flag: Decides when to stop or adjust tracing parameters (incremented in steps of 0.5 or 1)
+pt_sep: Controls how many pointw skipped in each chain's skeleton
+varargin: optional parameter, if EM passes skip a larger step (40) cuz EM images might be huge or need sparser sampling
+%}
+
 flag = 0;
 pt_sep = 5;
 if ~isempty(varargin) && strcmp(varargin{1},'EM')
     pt_sep = 40;
 end
+
+%{
+Loop the script until flag <= 2. When traced chain has sections with curvature below certain threshold, tracing too details/overfit
+change the seperation distance (pt_sep 1 to 3) and increment flag by 0.5.
+When parameters not found, more comprehensive analyis run (SmTr_ChainSamplingTracing and SmTr_AnalysisTracing) and flag incremented 
+by 1.
+When chain traces successfully and no more optimization to be done flag set to 2 and while look ended.
+%}
 while flag < 2
 
 clc
-handles = struct;
-handles.nmperpx = nmperpix;
-imds = imageDatastore(input_path);
-FilePaths = imds.Files;
-N_images = length(imds.Files);
-N = 0;
+handles = struct; %Handles store any data throughout processing (current image, resolution, output file name, results etc.)
+handles.nmperpx = nmperpix; %Appends the size of one pixel into the handles struct
+imds = imageDatastore(input_path); %Automatically manages collections of images in the input folder. [Find, Track, provide access to iterate etc.]
+FilePaths = imds.Files; %Pulls the file paths of images from imds struct into the variable
+N_images = length(imds.Files); %Number of images found
+N = 0; %Counter to enumerate extracted chains across the images
 ifield = 'chain';
 ivalue = {[];[];[]};
-directData = struct(ifield,ivalue);
-ImDir = [out_filename,' Traces'];
-mkdir(ImDir);
-netv5 = load('NetworkGen2.mat');
+directData = struct(ifield,ivalue); %Create a struct that holds the name 'chain' and 3x1 empty array
+ImDir = [out_filename, 'Traces']; %Folder name to save traced images
+mkdir(ImDir); %Create the save image folder if not existing
+netv5 = load('NetworkGen2.mat'); %Load the pretrained neural net to analyze and extract the chain skeletons from the images.
 
+
+%Run the for loop for all images found in the directory 
 for im_num = 1:N_images
-    disp(['Tracing Image #' num2str(im_num) '...'])
+    disp(['Tracing Image #' num2str(im_num) '...']) %Track the current image number
+    %Pull data from imds (imageDatastore), output directory, handles (image info), current image, image filepaths and load it to handles
     handles = load_data(imds, out_filename, handles,im_num,FilePaths);
     chains = struct;
     if ~isempty(varargin) && strcmp(varargin{1},'EM') 
