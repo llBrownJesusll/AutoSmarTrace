@@ -1,0 +1,38 @@
+Splitting Autotrace script
+==========================================
+Line
+1       :  140
+142   :  212
+214   :  330
+331   :  420
+422   :  570
+572   :  680
+683   :  725  
+
+
+Parameters:
+———————————————————
+input_path: Path to images 
+out_filename: Saving folder name
+nmperpix: Size of 1 pixel (using 2.0 by default)
+varargin: Optional parameter, custom skip amount for chain points (Em)
+
+Neural Net: NetworkGen2.mat
+
+Custom Functions
+———————————————————————————————
+load_data: Loads image data and processes it (greyscale, crop, normalization) and extracts filename and resolution data 
+
+PointProcess: Extract the chains from the images
+
+angdiff: Computes difference between two angles and ensure its between -pi and pi
+
+getpoints: Extracts and process points from the chain, fits B-spline to them and perform further image based adjustments and tracing calcs. 
+
+combo_calc: Compute tangent correlations, end to end distances along traced chain. Compile measures such as spline increments, curvature, angular changes.
+
+savedata: Save processed tracing data and associated parameters into a MAT file for later analysis.
+
+saveimage: Saves current figurine Matlab figure format and PNG.
+
+point_at_length: Retrieve a point and its derivative on the chain corresponding to the specified arc length.
