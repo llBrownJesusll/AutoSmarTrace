@@ -25,6 +25,7 @@ function AutoSmarTrace(input_path,out_filename,nmperpix,varargin)
 
 %{
 flag: Decides when to stop or adjust tracing parameters (incremented in steps of 0.5 or 1)
+    Loop breaks at flag = 2
 pt_sep: Controls how many points skipped in each chain's skeleton
 varargin: optional parameter, if EM passes skip a larger step (40) cuz EM images might be huge or need sparser sampling
 %}
@@ -36,8 +37,8 @@ if ~isempty(varargin) && strcmp(varargin{1},'EM')
 end
 
 %{
-Loop the script until flag <= 2. When traced chain has sections with curvature below certain threshold, tracing too details/overfit
-change the seperation distance (pt_sep 1 to 3) and increment flag by 0.5.
+Loop the script until flag <= 2. When traced chain has sections with curvature below certain threshold, tracing too many details/overfit
+-> change the seperation distance (pt_sep 1 to 3) and increment flag by 0.5.
 When parameters not found, more comprehensive analyis run (SmTr_ChainSamplingTracing and SmTr_AnalysisTracing) and flag incremented 
 by 1.
 When chain traces successfully and no more optimization to be done flag set to 2 and while look ended.
