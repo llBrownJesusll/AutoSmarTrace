@@ -1,7 +1,7 @@
 Splitting Autotrace script
 ==========================================
 Line
-1       :  140
+1     :  140
 142   :  212
 214   :  330
 331   :  420
@@ -9,6 +9,23 @@ Line
 572   :  680
 683   :  725  
 
+Run Program
+_______________________________________________
+AutoSmarTrace(InputFilePath,OutputName,pixelSize,OptionalInput);
+
+
+InputFilePath: string containing the path to the directory containing the images
+
+OutputName: string containing the name for the folder created with figures of traces and name for the output data structure containing chain data.
+
+pixelSize: size of the pixels in the image (default nanometres).
+
+OptionalInput: optional string input; currently if this is 'EM', optimizes chain tracing for EM images, and if this is 'actin', optimizes tracing for actin filaments. Also, if it is having trouble tracing, this could be 'filter', and additional filters may be applied to improve tracing in some cases.
+
+ex: |AutoSmarTrace('C:\Project\Image Data','Data Set 1',0.5);
+ex: |AutoSmarTrace('C:\Project\Image Data','Data Set 2',3.94,'actin');
+
+*For vscode, have the matlab terminal ready, drop down arrow beside powershell*
 
 Parameters:
 ———————————————————
