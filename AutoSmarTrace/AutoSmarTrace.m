@@ -189,7 +189,7 @@ function handles = load_data(input_datastore, out_pathname, handles,im_num,paths
 %     end
     pathparts = strsplit(handles.ans_filepath,filesep);
     handles.filename = pathparts{end};
-    A = readimage(input_datastore,im_num);
+    A = readimage(input_datastore,im_num); %Reduntant? just assign handles.A from start, annoying to write maybe
     if size(A, 3) > 1
         A = rgb2gray(A(:,:,1:3));
     end
