@@ -35,7 +35,7 @@ pt_sep = 5;
 if ~isempty(varargin) && strcmp(varargin{1},'EM')
     pt_sep = 40;
 end
-k=[];
+
 %{
 Loop the script until flag <= 2. When traced chain has sections with curvature below certain threshold, tracing too many details/overfit
 -> change the seperation distance (pt_sep 1 to 3) and increment flag by 0.5.
@@ -84,7 +84,7 @@ for im_num = 1:N_images
     N_chains = length(chains1);
     j=1;
     for i2=1:N_chains
-        if ~length(chains1(i2).points) == 0 %If length != 0
+        if ~length(chains1(i2).points) == 0
             chains(j).points = chains1(i2).points;
             j=j+1;
         end
@@ -104,7 +104,7 @@ for im_num = 1:N_images
     for chain_num = 1:N_chains
         figure(1)
         hold on
-        if length(chains(chain_num).points) == 0 || ~isfield(chains,'points') %Reduntant, chains is already filtered to contain non empty chains from chains1
+        if length(chains(chain_num).points) == 0 || ~isfield(chains,'points')
             N=N;
         else
         handles = getpoints(handles,directData,chains,[chain_num N],pt_sep);
@@ -248,7 +248,7 @@ nmperpx = handles.nmperpx;
 %returns spline values (sp_val) and its derivatives (dir_der)
 %modified interparc fuction fit returns equially distanced points
 %note dir_der is not unit length
-[sp_val, dir_der] = mod_interparc(1e-6:600,X,Y,'spline'); 
+[sp_val, dir_der] = mod_interparc(1e-6:600,X,Y,'spline'); %Doesnt look like a proper b-spline but more of a interploated cubic spline
 Xsp = sp_val(:,1);
 Ysp = sp_val(:,2);
 
