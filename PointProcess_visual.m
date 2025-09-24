@@ -254,6 +254,16 @@ for i = 1:length(chains)
         % Plot the newly found points in red
         plot(chains(i).points(1,:), chains(i).points(2,:), 'r-', 'LineWidth', 2);
         drawnow; % Force MATLAB to update the plot immediately
+
+        frame = getframe(gcf);
+        im = frame2im(frame);
+        [A,map] = rgb2ind(im,256);
+        if i == 1
+            imwrite(A,map,'trace.gif','gif','LoopCount',Inf,'DelayTime',0.05);
+        else
+            imwrite(A,map,'trace.gif','gif','WriteMode','append','DelayTime',0.05);
+        end
+
     end
     % --------------------------
 end

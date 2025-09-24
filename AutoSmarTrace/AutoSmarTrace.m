@@ -113,6 +113,41 @@ for im_num = 1:N_images
             pt_sep = 3;flag = flag + .5;
             break
         end
+
+    %gif code
+        % --- BEGIN GIF ANIMATION BLOCK ---
+
+        % Force MATLAB to finish drawing the plot updates
+        drawnow; 
+
+        % Capture the current figure window as a frame
+        frame = getframe(figure(1));
+        im = frame2im(frame);
+
+        % Convert the captured RGB image to an indexed image, which is necessary for the GIF format
+        [imind,cm] = rgb2ind(im,256); 
+
+        % Define a unique filename for the GIF within the 'Traces' directory
+        gif_filename = fullfile(ImDir, ['trace_animation_' handles.filename '.gif']);
+
+        % Write the frame to the GIF file
+        if chain_num == 1
+            % For the first chain, create a new GIF file. 
+            % 'Loopcount',inf makes the GIF loop forever.
+            % 'DelayTime' sets the time in seconds between frames.
+            imwrite(imind,cm,gif_filename,'gif', 'Loopcount',inf, 'DelayTime',0.2);
+        else
+            % For all subsequent chains, append the new frame to the existing file
+            imwrite(imind,cm,gif_filename,'gif','WriteMode','append', 'DelayTime',0.2);
+        end
+
+            % --- END GIF ANIMATION BLOCK ---
+            % ================================================================
+
+
+
+
+
         end
     end
 
@@ -226,6 +261,11 @@ end
 % to the resulting points.
 function handles = getpoints(handles,directData,chains,count,pt_sep)
 
+%Adding debugging code to check the zoom on each LL--------------------
+DEBUG_PLOTS = true;
+PLOT_EVERY = 1;
+%Added above-------------------------------------------------------------
+
 cn = count(1);
 Ntxt = count(2);
 
@@ -299,6 +339,38 @@ for LL=1:length(Xsp)
     dl = sqrt(dx^2+dy^2);
     dx = dx / dl; % normal tangent vector  
     dy = dy / dl;
+
+
+
+    
+%Adding debugging code=====================================================
+    if DEBUG_PLOTS && mod(LL,PLOT_EVERY)==0
+        % radius of the visual crop ~ search extents
+        Rn = max(abs(trange)); 
+        Rp = max(abs(prange));
+        R  = ceil(1.5*(Rn+Rp));
+    
+        cx = Xsp(LL);  cy = Ysp(LL);
+        x1 = max(1, round(cx - R));  x2 = min(size(im1,2), round(cx + R));
+        y1 = max(1, round(cy - R));  y2 = min(size(im1,1), round(cy + R));
+    
+        patchImg = im1(y1:y2, x1:x2);
+    
+        figure(101); clf
+        imagesc([x1 x2], [y1 y2], patchImg); 
+        axis image ij; colormap gray; hold on
+        plot(cx, cy, 'r+', 'MarkerSize', 8, 'LineWidth', 1.5);
+        % show local frame: tangent (green) and normal (cyan)
+        quiver(cx, cy, dx*R,  dy*R,  0, 'g', 'LineWidth', 1.2);
+        quiver(cx, cy, dy*R, -dx*R,  0, 'c', 'LineWidth', 1.2);
+        title(sprintf('Pre-grid zoom @ LL=%d  (center=(%.1f, %.1f))', LL, cx, cy));
+    end
+
+%End first debug block=====================================================
+
+
+
+
     
     % can use meshgrid instead
     Px = Xsp(LL) + tr * dy + pr * dx; % x corrdinates of search area (grid) 
@@ -322,7 +394,31 @@ for LL=1:length(Xsp)
 %     pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'cubic')'; 
 %     pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'nearest')'; 
     pts = reshape(pts,length(prange),length(trange)); % intensities at the grid points
-      
+
+
+
+
+% 2nd debug block=========================================================
+    if DEBUG_PLOTS && mod(LL,PLOT_EVERY)==0
+        % overlay the actual queried subpixel grid on the same crop
+        figure(101); hold on
+        plot(Px(:), Py(:), '.', 'MarkerSize', 4);  % sampling lattice
+        drawnow;
+    
+        % also visualize the sampled intensity patch in (prange x trange) coords
+        figure(102); clf
+        imagesc(trange, prange, pts);
+        axis image; axis xy; colormap gray
+        xlabel('normal offset t (px)'); ylabel('tangent offset p (px)');
+        title(sprintf('Sampled patch (pts) @ LL=%d', LL));
+        drawnow;
+    end
+
+% End 2nd block===========================================================
+
+
+
+
         
     if LL == 20
         wcv = centroid06(pts, 0, THRESH, MAX);

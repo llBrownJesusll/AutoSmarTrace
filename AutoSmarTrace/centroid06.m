@@ -3,6 +3,18 @@ function wcv = centroid06(pts, drw, THRESH, MAX)
 % Copyright 2016 Naghmeh Rezaei
 % ******Do NOT distribute******
 
+
+% Adding debugging initializers============================================
+DEBUG_XCORR  = true;   % quick on/off
+W_PLOT_EVERY = 1;      % plot every k-th tested width
+SPOT_COL     = 'argmax';   % 'argmax' | 'center' | numeric column index
+% Ending initalizers=======================================================
+
+
+
+
+
+
 %THRESH = 80;
 if THRESH == 0 && MAX == 0
     MAX = 1;
@@ -55,8 +67,90 @@ for w=widths
     %so3=zeros(size(pts,1),size(pts,2));
     %so3(yc-sc:yc+sc,:) = repmat(f2, sc*2+1, 1);
     so3 = repmat(f2, sc*2+1, 1) ./ (sc*2+1);
+
+
+% 1st debugging slice======================================================
+    if DEBUG_XCORR && mod(w, W_PLOT_EVERY)==0
+        % Figure A: inputs to the correlation at this width
+        figure(201); clf
+        set(gcf, 'Name', sprintf('centroid06: inputs @ w=%d', w));
+        tiledlayout(2,3, 'TileSpacing','compact','Padding','compact');
+    
+        % (A1) pts (already normalized in this file)
+        nexttile; imagesc(pts, [-1 1]); axis image ij; colormap gray
+        title(sprintf('pts (normalized), w=%d', w));
+    
+        % (A2) quartic bump f2 (with edge penalties)
+        nexttile; plot(f2,'LineWidth',1.2); hold on
+        xline(lc,'r--','Center'); 
+        yline(0,'k:');
+        title('f2 (quartic bump w/ edge penalties)');
+        xlabel('Perpendicular index (1..ll)'); ylabel('Amplitude');
+    
+        % (A3) replicated template so3 (rows = sc*2+1)
+        nexttile; imagesc(so3); axis image ij
+        title(sprintf('so3 = repmat(f2, %d rows)', size(so3,1)));
+        xlabel('Perpendicular (cols)'); ylabel('Rows in template');
+    end
+% Ending 1st slice=========================================================
+
+
     
     v=xcorr2normalized(pts, so3); %image registration with a 4th polynomial filter 
+
+
+
+% Adding 2nd slice=========================================================
+    if DEBUG_XCORR && mod(w, W_PLOT_EVERY)==0
+        % Figure B: correlation map + weighting geometry
+        figure(202); clf
+        set(gcf, 'Name', sprintf('centroid06: corr+weights @ w=%d', w));
+        tiledlayout(2,3, 'TileSpacing','compact','Padding','compact');
+    
+        % (B1) normalized cross-correlation result
+        nexttile; imagesc(v, [0 1]); axis image ij; colormap gray
+        title('v = xcorr2normalized(pts, so3)');
+    
+        % (B2) the Gaussian weights used to collapse rows -> 1×ll
+        yl = size(pts,1); yc = round(yl/2+0.5);
+        gw = normpdf(1:yl, yc, 3)';          % column vector
+        gw = gw / sum(gw);                   % normalize for visualization only
+        nexttile; plot(gw,'LineWidth',1.2); xlim([1 yl]);
+        title(sprintf('Gaussian weights along rows (yc=%d, \\sigma=3)', yc));
+        xlabel('Row index (y)'); ylabel('weight');
+    
+        % (B3) pick one column to show the dot-product geometry
+        switch SPOT_COL
+            case 'argmax'
+                [~, j0] = max(v(yc,:));      % column with max at center row
+            case 'center'
+                j0 = round(size(v,2)/2);
+            otherwise
+                j0 = max(1, min(size(v,2), round(SPOT_COL)));
+        end
+        colv = v(:, j0);
+        nexttile; 
+        plot(colv,'LineWidth',1.2); hold on
+        yyaxis right; plot(gw,'--','LineWidth',1.2); yyaxis left
+        title(sprintf('Column j=%d: v(:,j) & Gaussian weights', j0));
+        xlabel('Row index (y)'); ylabel('v(:,j)');
+    
+        % (B4) the weighted projection across rows (this becomes wcv(w,:))
+        wcv_row_dbg = (normpdf(1:yl, yc, 3) * v);   % same op as code below
+        nexttile([1 2]); plot(wcv_row_dbg, 'LineWidth',1.2);
+        xline(j0,'k:');
+        title('Projected row = gw^T * v  (this is wcv(w,:))');
+        xlabel('Perpendicular index (cols)'); ylabel('score');
+    
+        drawnow;
+    end
+
+% Ending 2nd slice=========================================================
+
+
+
+
+
     if size(v)~=size(pts)
         error('Size of the result does not match')
     end
