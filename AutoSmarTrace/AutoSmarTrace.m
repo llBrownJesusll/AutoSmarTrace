@@ -273,6 +273,10 @@ DEBUG_STAGE_PLOTS.overlayFig = 150;
 DEBUG_STAGE_PLOTS.deltaFig = 151;
 DEBUG_STAGE_PLOTS.focusChains = [1 2];
 DEBUG_STAGE_PLOTS.captureHeatmaps = true;
+DEBUG_STAGE_PLOTS.showRawToWidth = true;     % toggle blue curve
+DEBUG_STAGE_PLOTS.showWidthToFinal = true;   % toggle green curve
+DEBUG_STAGE_PLOTS.showRawToFinal = true;     % toggle magenta curve
+DEBUG_STAGE_PLOTS.interactiveLegend = true;  % click legend entries to hide/show
 
 CENTROID_DEBUG.enabled = false;
 CENTROID_DEBUG.plotEvery = 1;
@@ -785,16 +789,31 @@ if DEBUG_STAGE_PLOTS.enabled
 
     figure(DEBUG_STAGE_PLOTS.deltaFig); clf
     hold on; grid on;
-    plot(idxLL, diffRawWidth, ':', 'Color', rawColor, 'LineWidth', 1.4, ...
-        'Marker', 'o', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
-    plot(idxLL, diffWidthFinal, '--', 'Color', widthColor, 'LineWidth', 1.4, ...
-        'Marker', 's', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
-    plot(idxLL, diffRawFinal, '-', 'Color', finalColor, 'LineWidth', 1.6, ...
-        'Marker', 'd', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+    p = gobjects(0);
+    labels = {};
+    if DEBUG_STAGE_PLOTS.showRawToWidth
+        p(end+1) = plot(idxLL, diffRawWidth, ':', 'Color', rawColor, 'LineWidth', 1.4, ...
+            'Marker', 'o', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+        labels{end+1} = 'Raw \rightarrow Width';
+    end
+    if DEBUG_STAGE_PLOTS.showWidthToFinal
+        p(end+1) = plot(idxLL, diffWidthFinal, '--', 'Color', widthColor, 'LineWidth', 1.4, ...
+            'Marker', 's', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+        labels{end+1} = 'Width \rightarrow Width+Dir';
+    end
+    if DEBUG_STAGE_PLOTS.showRawToFinal
+        p(end+1) = plot(idxLL, diffRawFinal, '-', 'Color', finalColor, 'LineWidth', 1.6, ...
+            'Marker', 'd', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+        labels{end+1} = 'Raw \rightarrow Width+Dir';
+    end
     xlabel('Spline index (LL)');
     ylabel('Offset (px)');
-    legend({'Raw \rightarrow Width', 'Width \rightarrow Width+Dir', 'Raw \rightarrow Width+Dir'}, ...
-        'Location', 'northoutside');
+    if ~isempty(p)
+        hLeg = legend(p, labels, 'Location', 'northoutside');
+        if isfield(DEBUG_STAGE_PLOTS,'interactiveLegend') && DEBUG_STAGE_PLOTS.interactiveLegend
+            set(hLeg, 'ItemHitFcn', @legendToggleVisibility);
+        end
+    end
     title(sprintf('Stage offsets (chain %d)', chainGlobalId));
     drawnow;
 
@@ -991,6 +1010,16 @@ handles.intervals = intervals;
         stage.bestCol = bestCol;
         stage.bestVal = bestVal;
         stage.valid = true;
+    end
+
+
+    function legendToggleVisibility(~, evt)
+        % Click a legend entry to toggle the matching line visibility
+        if strcmp(evt.Peer.Visible, 'on')
+            evt.Peer.Visible = 'off';
+        else
+            evt.Peer.Visible = 'on';
+        end
     end
 
 
