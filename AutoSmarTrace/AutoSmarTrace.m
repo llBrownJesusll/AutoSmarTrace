@@ -262,16 +262,71 @@ end
 function handles = getpoints(handles,directData,chains,count,pt_sep)
 
 %Adding debugging code to check the zoom on each LL--------------------
-DEBUG_PLOTS = false;
+DEBUG_CHAIN_FILTER = [];             % [] => debug all chains
+DEBUG_PLOTS = false;                  % per-point patch diagnostics
 PLOT_EVERY = 1;
-DEBUG_STAGE_PLOTS.enabled = true;   % heavy stage visualisations
+
+DEBUG_STAGE_PLOTS.enabled = true;    % heavy stage visualisations (heatmaps/overlays)
 DEBUG_STAGE_PLOTS.plotEvery = 10;
 DEBUG_STAGE_PLOTS.figureBase = 140;
 DEBUG_STAGE_PLOTS.overlayFig = 150;
+DEBUG_STAGE_PLOTS.deltaFig = 151;
+DEBUG_STAGE_PLOTS.focusChains = [1 2];
+DEBUG_STAGE_PLOTS.captureHeatmaps = true;
+
+CENTROID_DEBUG.enabled = false;
+CENTROID_DEBUG.plotEvery = 1;
+CENTROID_DEBUG.figureBase = 205;
+CENTROID_DEBUG.figureStride = 50;
+CENTROID_DEBUG.mode = 'both';
+CENTROID_DEBUG.captureData = true;
+CENTROID_DEBUG.spotColumn = 'argmax';
+CENTROID_DEBUG.focusChains = [1 2];
+CENTROID_DEBUG.centroidFigureBase = 200;
+CENTROID_DEBUG.centroidFigureStride = 20;
 %Added above-------------------------------------------------------------
 
 cn = count(1);
 Ntxt = count(2);
+
+chainGlobalId = Ntxt + cn;
+chainFilter = DEBUG_CHAIN_FILTER;
+if isempty(chainFilter) && isfield(CENTROID_DEBUG, 'focusChains') && ~isempty(CENTROID_DEBUG.focusChains)
+    chainFilter = CENTROID_DEBUG.focusChains;
+end
+if isempty(chainFilter) && isfield(DEBUG_STAGE_PLOTS, 'focusChains') && ~isempty(DEBUG_STAGE_PLOTS.focusChains)
+    chainFilter = DEBUG_STAGE_PLOTS.focusChains;
+end
+shouldDebugChain = isempty(chainFilter) || ismember(chainGlobalId, chainFilter);
+
+DEBUG_PLOTS = DEBUG_PLOTS && shouldDebugChain;
+DEBUG_STAGE_PLOTS.enabled = DEBUG_STAGE_PLOTS.enabled && shouldDebugChain;
+CENTROID_DEBUG.enabled = CENTROID_DEBUG.enabled && shouldDebugChain;
+CENTROID_DEBUG.captureData = CENTROID_DEBUG.captureData && shouldDebugChain;
+
+centroidDebugOptions = CENTROID_DEBUG;
+centroidDebugOptions.chainLabel = chainGlobalId;
+centroidDebugOptions.plotEvery = max(1, centroidDebugOptions.plotEvery);
+centroidDebugOptions.figureBase = centroidDebugOptions.figureBase;
+centroidDebugOptions.figureStride = centroidDebugOptions.figureStride;
+centroidDebugOptions.centroidFigureBase = centroidDebugOptions.centroidFigureBase;
+centroidDebugOptions.centroidFigureStride = centroidDebugOptions.centroidFigureStride;
+
+if ~centroidDebugOptions.enabled
+    centroidDebugOptions.captureData = false;
+end
+
+if DEBUG_STAGE_PLOTS.enabled
+    stageStride = 30;
+    DEBUG_STAGE_PLOTS.plotEvery = max(1, DEBUG_STAGE_PLOTS.plotEvery);
+    DEBUG_STAGE_PLOTS.figureBase = DEBUG_STAGE_PLOTS.figureBase + chainGlobalId * stageStride;
+    DEBUG_STAGE_PLOTS.overlayFig = DEBUG_STAGE_PLOTS.overlayFig + chainGlobalId * stageStride;
+    if isfield(DEBUG_STAGE_PLOTS, 'deltaFig')
+        DEBUG_STAGE_PLOTS.deltaFig = DEBUG_STAGE_PLOTS.deltaFig + chainGlobalId * stageStride;
+    end
+else
+    DEBUG_STAGE_PLOTS.captureHeatmaps = false;
+end
 
 X = chains(cn).points(1,2:pt_sep:end-1);
 Y = chains(cn).points(2,2:pt_sep:end-1);
@@ -340,6 +395,18 @@ pr=repmat(prange',1,length(trange));
 
 
 lwcv = zeros(0,0,0); % value (score) at a specific length, width & centre compare to where the initial spline is.
+
+if DEBUG_STAGE_PLOTS.enabled && isfield(DEBUG_STAGE_PLOTS, 'captureHeatmaps') && DEBUG_STAGE_PLOTS.captureHeatmaps
+    stageSnapshots = cell(length(Xsp),1);
+else
+    stageSnapshots = {};
+end
+
+if centroidDebugOptions.captureData
+    centroidSnapshots = cell(length(Xsp),1);
+else
+    centroidSnapshots = {};
+end
 
 for LL=1:length(Xsp)
   % tangent direction
@@ -429,10 +496,9 @@ for LL=1:length(Xsp)
 
 
         
-    if LL == 20
-        wcv = centroid06(pts, 0, THRESH, MAX);
-    else
-        wcv = centroid06(pts, 0, THRESH, MAX);
+    [wcv, centroidDebugState] = centroid06(pts, 0, THRESH, MAX, centroidDebugOptions);
+    if centroidDebugOptions.captureData
+        centroidSnapshots{LL} = centroidDebugState.snapshots;
     end
         
     
@@ -547,6 +613,16 @@ for LL=1:length(Xsp)
     if DEBUG_STAGE_PLOTS.enabled
         stageFinal = struct('rows', cw(:), 'cols', cc(:), 'vals', cv(:), ...
             'bestRow', ww, 'bestCol', ii, 'bestVal', vv, 'valid', true);
+    end
+
+    if DEBUG_STAGE_PLOTS.enabled && iscell(stageSnapshots)
+        stageSnapshots{LL} = struct( ...
+            'rawScores', baseScores, ...
+            'widthScores', widthScores, ...
+            'directionScores', dirScores, ...
+            'rawPeaks', stageRaw, ...
+            'widthPeaks', stageWidth, ...
+            'finalPeaks', stageFinal);
     end
 
     t = trange(ii);
@@ -699,15 +775,102 @@ if DEBUG_STAGE_PLOTS.enabled
     if ~isempty(legendLabels)
         legend(legendHandles, legendLabels, 'Location', 'southoutside');
     end
-    title('Trace comparison: peak selection stages');
+    title(sprintf('Trace comparison (chain %d)', chainGlobalId));
     drawnow;
 
-    handles.debugStage.rawXT = XT_raw;
-    handles.debugStage.rawYT = YT_raw;
-    handles.debugStage.widthXT = XT_width;
-    handles.debugStage.widthYT = YT_width;
-    handles.debugStage.finalXT = XT;
-    handles.debugStage.finalYT = YT;
+    idxLL = (1:length(XT))';
+    diffRawWidth = hypot(XT_width - XT_raw, YT_width - YT_raw);
+    diffWidthFinal = hypot(XT - XT_width, YT - YT_width);
+    diffRawFinal = hypot(XT - XT_raw, YT - YT_raw);
+
+    figure(DEBUG_STAGE_PLOTS.deltaFig); clf
+    hold on; grid on;
+    plot(idxLL, diffRawWidth, ':', 'Color', rawColor, 'LineWidth', 1.2);
+    plot(idxLL, diffWidthFinal, '--', 'Color', widthColor, 'LineWidth', 1.2);
+    plot(idxLL, diffRawFinal, '-', 'Color', finalColor, 'LineWidth', 1.4);
+    xlabel('Spline index (LL)');
+    ylabel('Offset (px)');
+    legend({'Raw \rightarrow Width', 'Width \rightarrow Width+Dir', 'Raw \rightarrow Width+Dir'}, ...
+        'Location', 'northoutside');
+    title(sprintf('Stage offsets (chain %d)', chainGlobalId));
+    drawnow;
+
+    summaryIdx = [];
+    summarySample = [];
+    if DEBUG_STAGE_PLOTS.enabled && isfield(DEBUG_STAGE_PLOTS,'captureHeatmaps') && DEBUG_STAGE_PLOTS.captureHeatmaps && iscell(stageSnapshots)
+        filledIdx = find(~cellfun(@isempty, stageSnapshots));
+        if ~isempty(filledIdx)
+            summaryIdx = filledIdx(round(length(filledIdx)/2));
+            summarySample = stageSnapshots{summaryIdx};
+            widthAxis = 1:size(summarySample.rawScores,1);
+            figure(DEBUG_STAGE_PLOTS.figureBase + 4); clf
+            set(gcf, 'Name', sprintf('Chain %d LL=%d stage summary', chainGlobalId, summaryIdx));
+            tiledlayout(1,3, 'TileSpacing','compact','Padding','compact');
+
+            nexttile
+            imagesc(trange, widthAxis, summarySample.rawScores);
+            axis xy; colormap(gca, 'parula'); colorbar;
+            title('Before width weighting');
+            if summarySample.rawPeaks.valid
+                hold on
+                scatter(trange(summarySample.rawPeaks.cols), summarySample.rawPeaks.rows, 20, rawColor, 'filled');
+                scatter(trange(summarySample.rawPeaks.bestCol), summarySample.rawPeaks.bestRow, 60, rawColor, 'LineWidth', 1.2);
+            end
+
+            nexttile
+            imagesc(trange, widthAxis, summarySample.widthScores);
+            axis xy; colormap(gca, 'parula'); colorbar;
+            title('After width smoothing');
+            if summarySample.widthPeaks.valid
+                hold on
+                scatter(trange(summarySample.widthPeaks.cols), summarySample.widthPeaks.rows, 20, widthColor, 'filled');
+                scatter(trange(summarySample.widthPeaks.bestCol), summarySample.widthPeaks.bestRow, 60, widthColor, 'LineWidth', 1.2);
+            end
+
+            nexttile
+            imagesc(trange, widthAxis, summarySample.directionScores);
+            axis xy; colormap(gca, 'parula'); colorbar;
+            title('After directional continuity');
+            if summarySample.finalPeaks.valid
+                hold on
+                scatter(trange(summarySample.finalPeaks.cols), summarySample.finalPeaks.rows, 20, finalColor, 'filled');
+                scatter(trange(summarySample.finalPeaks.bestCol), summarySample.finalPeaks.bestRow, 70, finalColor, 'LineWidth', 1.2);
+            end
+            xlabel('Normal offset (trange)');
+            ylabel('Width index');
+            drawnow;
+        end
+    end
+
+    chainDebug = struct();
+    chainDebug.chainId = chainGlobalId;
+    chainDebug.rawXT = XT_raw;
+    chainDebug.rawYT = YT_raw;
+    chainDebug.widthXT = XT_width;
+    chainDebug.widthYT = YT_width;
+    chainDebug.finalXT = XT;
+    chainDebug.finalYT = YT;
+    chainDebug.rawToWidthOffset = diffRawWidth;
+    chainDebug.widthToFinalOffset = diffWidthFinal;
+    chainDebug.rawToFinalOffset = diffRawFinal;
+    chainDebug.summaryIndex = summaryIdx;
+    if DEBUG_STAGE_PLOTS.enabled && isfield(DEBUG_STAGE_PLOTS,'captureHeatmaps') ...
+            && DEBUG_STAGE_PLOTS.captureHeatmaps && iscell(stageSnapshots)
+        chainDebug.stageSnapshots = stageSnapshots;
+    else
+        chainDebug.stageSnapshots = {};
+    end
+    if centroidDebugOptions.captureData && iscell(centroidSnapshots)
+        chainDebug.centroidSnapshots = centroidSnapshots;
+    else
+        chainDebug.centroidSnapshots = {};
+    end
+
+    if ~isfield(handles, 'debugStage') || isempty(handles.debugStage)
+        handles.debugStage = chainDebug;
+    else
+        handles.debugStage(end+1) = chainDebug;
+    end
 end
 
 % ---------------------------------------------------------------

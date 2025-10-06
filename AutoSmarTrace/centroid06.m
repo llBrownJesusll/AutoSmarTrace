@@ -1,21 +1,34 @@
-function wcv = centroid06(pts, drw, THRESH, MAX)
+function [wcv, debugOut] = centroid06(pts, drw, THRESH, MAX, debugOptions)
 %pattern matching algorithm
 % Copyright 2016 Naghmeh Rezaei
 % ******Do NOT distribute******
 
+if nargin < 5 || isempty(debugOptions)
+    debugOptions = struct();
+end
 
-% Adding debugging initializers============================================
-DEBUG_XCORR  = false;                 % quick on/off
-W_PLOT_EVERY = 1;                     % plot every k-th tested width
-SPOT_COL     = 'argmax';              % 'argmax' | 'center' | numeric column index
-DEBUG_XCORR_MODE = 'both';            % 'xcorr-only' | 'centroid-only' | 'both'
-DEBUG_XCORR_FIGBASE = 205;            % base figure id for xcorr2normalized plots
-% Ending initalizers=======================================================
+DEBUG_XCORR = get_field(debugOptions, 'enabled', false);
+W_PLOT_EVERY = get_field(debugOptions, 'plotEvery', 1);
+SPOT_COL = get_field(debugOptions, 'spotColumn', 'argmax');
+DEBUG_XCORR_MODE = lower(char(get_field(debugOptions, 'mode', 'both')));
+DEBUG_XCORR_FIGBASE = get_field(debugOptions, 'figureBase', 205);
+XCORR_FIG_STRIDE = get_field(debugOptions, 'figureStride', 50);
+CAPTURE_DEBUG = DEBUG_XCORR && get_field(debugOptions, 'captureData', false);
+CHAIN_LABEL = get_field(debugOptions, 'chainLabel', NaN);
 
+CENTROID_FIG_BASE = get_field(debugOptions, 'centroidFigureBase', 200);
+CENTROID_FIG_STRIDE = get_field(debugOptions, 'centroidFigureStride', 20);
+if ~isnan(CHAIN_LABEL)
+    CENTROID_FIG_BASE = CENTROID_FIG_BASE + CHAIN_LABEL * CENTROID_FIG_STRIDE;
+    DEBUG_XCORR_FIGBASE = DEBUG_XCORR_FIGBASE + CHAIN_LABEL * XCORR_FIG_STRIDE;
+end
 
-
-
-
+debugOut = struct('settings', debugOptions);
+if CAPTURE_DEBUG
+    debugOut.snapshots = cell(0,1);
+else
+    debugOut.snapshots = {};
+end
 
 %THRESH = 80;
 if THRESH == 0 && MAX == 0
@@ -78,8 +91,13 @@ for w=widths
 % 1st debugging slice======================================================
     if doCentroidDebug
         % Figure A: inputs to the correlation at this width
-        figure(201); clf
-        set(gcf, 'Name', sprintf('centroid06: inputs @ w=%d', w));
+        figure(CENTROID_FIG_BASE + 1); clf
+        if isnan(CHAIN_LABEL)
+            figTitle = sprintf('centroid06: inputs @ w=%d', w);
+        else
+            figTitle = sprintf('centroid06: chain %d inputs @ w=%d', CHAIN_LABEL, w);
+        end
+        set(gcf, 'Name', figTitle);
         tiledlayout(2,3, 'TileSpacing','compact','Padding','compact');
     
         % (A1) pts (already normalized in this file)
@@ -103,15 +121,26 @@ for w=widths
 
     
     if doXCorrDebug
+        if isnan(CHAIN_LABEL)
+            suffix = sprintf('w=%d', w);
+        else
+            suffix = sprintf('chain %d — w=%d', CHAIN_LABEL, w);
+        end
         xcorrDebugCfg = struct( ...
             'enabled', true, ...
             'figureBase', DEBUG_XCORR_FIGBASE, ...
-            'mode', 'both', ...
-            'titleSuffix', sprintf('w=%d', w));
+            'mode', DEBUG_XCORR_MODE, ...
+            'titleSuffix', suffix);
         [v, dbgXCorr] = xcorr2normalized(pts, so3, xcorrDebugCfg);
     else
         v = xcorr2normalized(pts, so3); %image registration with a 4th polynomial filter
         dbgXCorr = [];
+    end
+
+    if CAPTURE_DEBUG
+        snap = struct('width', w, 'pts', pts, 'template', so3, ...
+            'correlation', v, 'aux', dbgXCorr);
+        debugOut.snapshots{end+1,1} = snap; %#ok<AGROW>
     end
 
 
@@ -119,8 +148,13 @@ for w=widths
 % Adding 2nd slice=========================================================
     if doCentroidDebug
         % Figure B: correlation map + weighting geometry
-        figure(202); clf
-        set(gcf, 'Name', sprintf('centroid06: corr+weights @ w=%d', w));
+        figure(CENTROID_FIG_BASE + 2); clf
+        if isnan(CHAIN_LABEL)
+            figTitle = sprintf('centroid06: corr+weights @ w=%d', w);
+        else
+            figTitle = sprintf('centroid06: chain %d corr+weights @ w=%d', CHAIN_LABEL, w);
+        end
+        set(gcf, 'Name', figTitle);
         tiledlayout(2,3, 'TileSpacing','compact','Padding','compact');
     
         % (B1) normalized cross-correlation result
@@ -250,4 +284,13 @@ end
 if drw
     figure(ff);
 end
+end
+
+function value = get_field(opts, name, defaultValue)
+%GET_FIELD Safe struct field accessor with default fallback.
+    if isstruct(opts) && isfield(opts, name) && ~isempty(opts.(name))
+        value = opts.(name);
+    else
+        value = defaultValue;
+    end
 end
