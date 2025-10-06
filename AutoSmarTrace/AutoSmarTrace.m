@@ -741,9 +741,9 @@ handles.XT = XT;
 handles.YT = YT;
 
 if DEBUG_STAGE_PLOTS.enabled
-    rawColor = [0.2 0.6 0.9];
-    widthColor = [0.95 0.7 0.2];
-    finalColor = [0.85 0.1 0.1];
+    rawColor = [0.18 0.35 0.85];      % blue-ish for raw peaks
+    widthColor = [0.15 0.70 0.25];    % green for width enforcement
+    finalColor = [0.70 0.20 0.80];    % magenta for width+direction
 
     figure(DEBUG_STAGE_PLOTS.overlayFig); clf
     imagesc(handles.A);
@@ -785,9 +785,12 @@ if DEBUG_STAGE_PLOTS.enabled
 
     figure(DEBUG_STAGE_PLOTS.deltaFig); clf
     hold on; grid on;
-    plot(idxLL, diffRawWidth, ':', 'Color', rawColor, 'LineWidth', 1.2);
-    plot(idxLL, diffWidthFinal, '--', 'Color', widthColor, 'LineWidth', 1.2);
-    plot(idxLL, diffRawFinal, '-', 'Color', finalColor, 'LineWidth', 1.4);
+    plot(idxLL, diffRawWidth, ':', 'Color', rawColor, 'LineWidth', 1.4, ...
+        'Marker', 'o', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+    plot(idxLL, diffWidthFinal, '--', 'Color', widthColor, 'LineWidth', 1.4, ...
+        'Marker', 's', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
+    plot(idxLL, diffRawFinal, '-', 'Color', finalColor, 'LineWidth', 1.6, ...
+        'Marker', 'd', 'MarkerIndices', 1:max(1,floor(length(idxLL)/12)):(length(idxLL)));
     xlabel('Spline index (LL)');
     ylabel('Offset (px)');
     legend({'Raw \rightarrow Width', 'Width \rightarrow Width+Dir', 'Raw \rightarrow Width+Dir'}, ...
