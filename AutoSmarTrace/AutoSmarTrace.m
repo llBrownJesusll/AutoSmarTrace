@@ -262,8 +262,12 @@ end
 function handles = getpoints(handles,directData,chains,count,pt_sep)
 
 %Adding debugging code to check the zoom on each LL--------------------
-DEBUG_PLOTS = true;
+DEBUG_PLOTS = false;
 PLOT_EVERY = 1;
+DEBUG_STAGE_PLOTS.enabled = true;   % heavy stage visualisations
+DEBUG_STAGE_PLOTS.plotEvery = 10;
+DEBUG_STAGE_PLOTS.figureBase = 140;
+DEBUG_STAGE_PLOTS.overlayFig = 150;
 %Added above-------------------------------------------------------------
 
 cn = count(1);
@@ -320,6 +324,11 @@ MAX = double(prctile(reshape(imcenter,1,[]), 99.9));
 
 XT = Xsp;
 YT = Ysp;
+
+XT_raw = nan(length(Xsp), 1);
+YT_raw = nan(length(Xsp), 1);
+XT_width = nan(length(Xsp), 1);
+YT_width = nan(length(Xsp), 1);
 
 % search range
 steps = 0.25; %default 0.2
@@ -469,9 +478,34 @@ for LL=1:length(Xsp)
     % give more weight to those near the smooth width at that point of the
     % chain
     wcv = squeeze(lwcv(LL,:,:));
+    baseScores = wcv;
+
+    stageRaw = struct('valid', false);
+    stageWidth = struct('valid', false);
+    stageFinal = struct('valid', false);
+
+    if DEBUG_STAGE_PLOTS.enabled
+        stageRaw = collectStagePeaks(baseScores);
+        if stageRaw.valid
+            t_raw = trange(stageRaw.bestCol);
+            XT_raw(LL) = Xsp(LL) + dy * t_raw;
+            YT_raw(LL) = Ysp(LL) + -dx * t_raw;
+        end
+    end
+
     W = repmat(normpdf(1:size(wcv,1), wl(LL), size(wcv,1)*0.1)', 1, size(wcv,2));
     W = W/max(max(W));
     wcv = W.*wcv;
+    widthScores = wcv;
+
+    if DEBUG_STAGE_PLOTS.enabled
+        stageWidth = collectStagePeaks(widthScores);
+        if stageWidth.valid
+            t_width = trange(stageWidth.bestCol);
+            XT_width(LL) = Xsp(LL) + dy * t_width;
+            YT_width(LL) = Ysp(LL) + -dx * t_width;
+        end
+    end
     
     % more weight for points in the same direction as the last point
     if LL>2
@@ -484,42 +518,126 @@ for LL=1:length(Xsp)
         xn = XT(LL-1) + tdx;
         yn = YT(LL-1) + tdy;
         
-        Wc=[];
+        Wc = zeros(1, size(wcv,2));
         for cc=1:size(wcv,2)
             c = trange(cc);
-            
             x2 = Xsp(LL) + dy * c;
             y2 = Ysp(LL) + -dx * c;
             L2 = (x2-xn).^2+(y2-yn).^2;
             Wc(cc) = 5/(5+L2);
         end
-        W=repmat(Wc, size(wcv,1), 1);
+        W = repmat(Wc, size(wcv,1), 1);
         wcv = W.*wcv;
     end
     
+    dirScores = wcv;
+
     [cw, cc] = ind2sub(size(wcv), find(findpeaksn(wcv,true(1, ndims(wcv)))));
-    if length(cw) == 0
+    if isempty(cw)
         error('No peaks found')
     end
-    cv=[];
-    for ii=1:length(cw)
-        cv(end+1)=wcv(cw(ii),cc(ii));
+    cv = zeros(1, length(cw));
+    for idx_peak = 1:length(cw)
+        cv(idx_peak) = wcv(cw(idx_peak),cc(idx_peak));
     end
-    %[cw';cc';cv]
-    [a,k]=max(cv);
+    [vv,k]=max(cv);
     ii=cc(k);
     ww=cw(k);
-    vv=cv(k);
-    
+
+    if DEBUG_STAGE_PLOTS.enabled
+        stageFinal = struct('rows', cw(:), 'cols', cc(:), 'vals', cv(:), ...
+            'bestRow', ww, 'bestCol', ii, 'bestVal', vv, 'valid', true);
+    end
+
     t = trange(ii);
-    
-    XT(LL) = Xsp(LL) + dy * t;
-    YT(LL) = Ysp(LL) + -dx * t;
+    finalX = Xsp(LL) + dy * t;
+    finalY = Ysp(LL) + -dx * t;
+
+    XT(LL) = finalX;
+    YT(LL) = finalY;
     
     XJ = [XT(LL)-dy*steps*ww/2 XT(LL)+dy*steps*ww/2];
     YJ = [YT(LL)+dx*steps*ww/2 YT(LL)-dx*steps*ww/2];
     chpX(LL,:) = XJ;
     chpY(LL,:) = YJ;
+
+    if DEBUG_STAGE_PLOTS.enabled && mod(LL, DEBUG_STAGE_PLOTS.plotEvery)==0
+        widthAxis = 1:size(baseScores,1);
+        rawColor = [0.2 0.6 0.9];
+        widthColor = [0.95 0.7 0.2];
+        finalColor = [0.85 0.1 0.1];
+
+        figure(DEBUG_STAGE_PLOTS.figureBase); clf
+        set(gcf, 'Name', sprintf('Stage scoring @ LL=%d', LL));
+        tiledlayout(2,2, 'TileSpacing','compact','Padding','compact');
+
+        nexttile
+        imagesc(trange, widthAxis, baseScores);
+        axis xy
+        colormap(gca, 'parula');
+        colorbar
+        title('Before peak collection');
+        if stageRaw.valid
+            hold on
+            scatter(trange(stageRaw.cols), stageRaw.rows, 20, 'w', 'filled');
+            scatter(trange(stageRaw.bestCol), stageRaw.bestRow, 50, rawColor, 'filled');
+        end
+
+        nexttile
+        imagesc(trange, widthAxis, widthScores);
+        axis xy
+        colormap(gca, 'parula');
+        colorbar
+        title('After width smoothing');
+        if stageWidth.valid
+            hold on
+            scatter(trange(stageWidth.cols), stageWidth.rows, 20, 'w', 'filled');
+            scatter(trange(stageWidth.bestCol), stageWidth.bestRow, 50, widthColor, 'filled');
+        end
+
+        nexttile
+        imagesc(trange, widthAxis, dirScores);
+        axis xy
+        colormap(gca, 'parula');
+        colorbar
+        title('After directional continuity');
+        if stageFinal.valid
+            hold on
+            scatter(trange(stageFinal.cols), stageFinal.rows, 20, 'w', 'filled');
+            scatter(trange(stageFinal.bestCol), stageFinal.bestRow, 60, finalColor, 'filled');
+        end
+
+        nexttile
+        Rn = max(abs(trange));
+        Rp = max(abs(prange));
+        R = ceil(1.5*(Rn+Rp));
+        cx = Xsp(LL);
+        cy = Ysp(LL);
+        x1 = max(1, round(cx - R));  x2 = min(size(im1,2), round(cx + R));
+        y1 = max(1, round(cy - R));  y2 = min(size(im1,1), round(cy + R));
+        patchImg = im1(y1:y2, x1:x2);
+        imagesc([x1 x2], [y1 y2], patchImg);
+        axis image ij
+        colormap(gca, 'gray');
+        hold on
+        if any(~isnan(XT_raw(1:LL)))
+            plot(XT_raw(1:LL), YT_raw(1:LL), ':', 'Color', rawColor, 'LineWidth', 1.1);
+        end
+        if any(~isnan(XT_width(1:LL)))
+            plot(XT_width(1:LL), YT_width(1:LL), '--', 'Color', widthColor, 'LineWidth', 1.1);
+        end
+        plot(XT(1:LL), YT(1:LL), '-', 'Color', finalColor, 'LineWidth', 1.3);
+        if stageRaw.valid && ~isnan(XT_raw(LL))
+            scatter(XT_raw(LL), YT_raw(LL), 36, rawColor, 'filled');
+        end
+        if stageWidth.valid && ~isnan(XT_width(LL))
+            scatter(XT_width(LL), YT_width(LL), 36, widthColor, 'filled');
+        end
+        scatter(finalX, finalY, 48, finalColor, 'filled');
+        title('Local patch with traces');
+
+        drawnow;
+    end
 
 end
 
@@ -545,6 +663,52 @@ handles.X = X;
 handles.Y = Y;
 handles.XT = XT;
 handles.YT = YT;
+
+if DEBUG_STAGE_PLOTS.enabled
+    rawColor = [0.2 0.6 0.9];
+    widthColor = [0.95 0.7 0.2];
+    finalColor = [0.85 0.1 0.1];
+
+    figure(DEBUG_STAGE_PLOTS.overlayFig); clf
+    imagesc(handles.A);
+    axis image ij
+    colormap(gca, 'gray');
+    hold on
+
+    legendHandles = [];
+    legendLabels = {};
+
+    rawMask = ~isnan(XT_raw) & ~isnan(YT_raw);
+    if any(rawMask)
+        hRaw = plot(XT_raw(rawMask), YT_raw(rawMask), ':', 'Color', rawColor, 'LineWidth', 1.2);
+        legendHandles(end+1) = hRaw; %#ok<AGROW>
+        legendLabels{end+1} = 'Raw peaks'; %#ok<AGROW>
+    end
+
+    widthMask = ~isnan(XT_width) & ~isnan(YT_width);
+    if any(widthMask)
+        hWidth = plot(XT_width(widthMask), YT_width(widthMask), '--', 'Color', widthColor, 'LineWidth', 1.2);
+        legendHandles(end+1) = hWidth; %#ok<AGROW>
+        legendLabels{end+1} = 'Width enforced'; %#ok<AGROW>
+    end
+
+    hFinal = plot(XT, YT, '-', 'Color', finalColor, 'LineWidth', 1.5);
+    legendHandles(end+1) = hFinal; %#ok<AGROW>
+    legendLabels{end+1} = 'Width+direction enforced'; %#ok<AGROW>
+
+    if ~isempty(legendLabels)
+        legend(legendHandles, legendLabels, 'Location', 'southoutside');
+    end
+    title('Trace comparison: peak selection stages');
+    drawnow;
+
+    handles.debugStage.rawXT = XT_raw;
+    handles.debugStage.rawYT = YT_raw;
+    handles.debugStage.widthXT = XT_width;
+    handles.debugStage.widthYT = YT_width;
+    handles.debugStage.finalXT = XT;
+    handles.debugStage.finalYT = YT;
+end
 
 % ---------------------------------------------------------------
 % --- Compile spline fitting and image data (--> normalize lengths vs. pixels)
@@ -625,6 +789,43 @@ sd_itv = round (sd_itv);
 handles.mean_itv = mean_itv;
 handles.sd_itv = sd_itv;
 handles.intervals = intervals;
+
+
+    function stage = collectStagePeaks(scoreMap)
+        stage = struct('rows', [], 'cols', [], 'vals', [], ...
+            'bestRow', NaN, 'bestCol', NaN, 'bestVal', NaN, 'valid', false);
+        scoreMap = double(scoreMap);
+        if isempty(scoreMap)
+            return
+        end
+
+        mask = findpeaksn(scoreMap, true(1, ndims(scoreMap)));
+        idx = find(mask);
+        if isempty(idx)
+            [bestVal, bestIdx] = max(scoreMap(:));
+            if isempty(bestIdx)
+                return
+            end
+            [bestRow, bestCol] = ind2sub(size(scoreMap), bestIdx);
+            stage.rows = bestRow;
+            stage.cols = bestCol;
+            stage.vals = bestVal;
+        else
+            [rows, cols] = ind2sub(size(scoreMap), idx);
+            vals = scoreMap(idx);
+            stage.rows = rows(:);
+            stage.cols = cols(:);
+            stage.vals = vals(:);
+            [bestVal, bestIdx] = max(stage.vals);
+            bestRow = stage.rows(bestIdx);
+            bestCol = stage.cols(bestIdx);
+        end
+
+        stage.bestRow = bestRow;
+        stage.bestCol = bestCol;
+        stage.bestVal = bestVal;
+        stage.valid = true;
+    end
 
 
 end

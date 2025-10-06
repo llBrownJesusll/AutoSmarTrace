@@ -5,9 +5,11 @@ function wcv = centroid06(pts, drw, THRESH, MAX)
 
 
 % Adding debugging initializers============================================
-DEBUG_XCORR  = true;   % quick on/off
-W_PLOT_EVERY = 1;      % plot every k-th tested width
-SPOT_COL     = 'argmax';   % 'argmax' | 'center' | numeric column index
+DEBUG_XCORR  = false;                 % quick on/off
+W_PLOT_EVERY = 1;                     % plot every k-th tested width
+SPOT_COL     = 'argmax';              % 'argmax' | 'center' | numeric column index
+DEBUG_XCORR_MODE = 'both';            % 'xcorr-only' | 'centroid-only' | 'both'
+DEBUG_XCORR_FIGBASE = 205;            % base figure id for xcorr2normalized plots
 % Ending initalizers=======================================================
 
 
@@ -68,9 +70,13 @@ for w=widths
     %so3(yc-sc:yc+sc,:) = repmat(f2, sc*2+1, 1);
     so3 = repmat(f2, sc*2+1, 1) ./ (sc*2+1);
 
+    doDebug = DEBUG_XCORR && mod(w, W_PLOT_EVERY) == 0;
+    doXCorrDebug = doDebug && ~strcmpi(DEBUG_XCORR_MODE, 'centroid-only');
+    doCentroidDebug = doDebug && ~strcmpi(DEBUG_XCORR_MODE, 'xcorr-only');
+
 
 % 1st debugging slice======================================================
-    if DEBUG_XCORR && mod(w, W_PLOT_EVERY)==0
+    if doCentroidDebug
         % Figure A: inputs to the correlation at this width
         figure(201); clf
         set(gcf, 'Name', sprintf('centroid06: inputs @ w=%d', w));
@@ -96,12 +102,22 @@ for w=widths
 
 
     
-    v=xcorr2normalized(pts, so3); %image registration with a 4th polynomial filter 
+    if doXCorrDebug
+        xcorrDebugCfg = struct( ...
+            'enabled', true, ...
+            'figureBase', DEBUG_XCORR_FIGBASE, ...
+            'mode', 'both', ...
+            'titleSuffix', sprintf('w=%d', w));
+        [v, dbgXCorr] = xcorr2normalized(pts, so3, xcorrDebugCfg);
+    else
+        v = xcorr2normalized(pts, so3); %image registration with a 4th polynomial filter
+        dbgXCorr = [];
+    end
 
 
 
 % Adding 2nd slice=========================================================
-    if DEBUG_XCORR && mod(w, W_PLOT_EVERY)==0
+    if doCentroidDebug
         % Figure B: correlation map + weighting geometry
         figure(202); clf
         set(gcf, 'Name', sprintf('centroid06: corr+weights @ w=%d', w));
@@ -109,7 +125,7 @@ for w=widths
     
         % (B1) normalized cross-correlation result
         nexttile; imagesc(v, [0 1]); axis image ij; colormap gray
-        title('v = xcorr2normalized(pts, so3)');
+        title('v = xcorr2normalized(pts, so3) (without centroid)');
     
         % (B2) the Gaussian weights used to collapse rows -> 1×ll
         yl = size(pts,1); yc = round(yl/2+0.5);
@@ -139,7 +155,7 @@ for w=widths
         wcv_row_dbg = (normpdf(1:yl, yc, 3) * v);   % same op as code below
         nexttile([1 2]); plot(wcv_row_dbg, 'LineWidth',1.2);
         xline(j0,'k:');
-        title('Projected row = gw^T * v  (this is wcv(w,:))');
+        title('Projected row = gw^T * v (with centroid)');
         xlabel('Perpendicular index (cols)'); ylabel('score');
     
         drawnow;
