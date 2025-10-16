@@ -248,7 +248,8 @@ calculate_angle_hist(sampled_segments, rng );
         angle_prob = angle_hist./sum_prob;
         lnG = -log(angle_prob);
         
-%         plot(x_range(1:size(angle_hist,1)), lnG(:,ind), 'o');               
+         plot(x_range(1:size(angle_hist,1)), lnG(:,ind), 'o');    %Commented out     
+
         row = [];
         lnGfit_results = [];
         for i = 1:length(ind)
@@ -265,7 +266,7 @@ calculate_angle_hist(sampled_segments, rng );
         
         close all
         
-%         plot(1./lnGfit_results(:,1),lnGfit_results(:,3));
+         plot(1./lnGfit_results(:,1),lnGfit_results(:,3)); %Comment out
         fit_lnG('lnG_lp',1./lnGfit_results(:,1),lnGfit_results(:,3),[],[],1)
         
 %       regexp(sprintf(['L%f '],[2,4,5]*2.15), ' ', 'split')
@@ -289,8 +290,10 @@ calculate_angle_hist(sampled_segments, rng );
             opts = fitoptions(ft);
             opts.Display = 'Off';
             %         opts.StartPoint = 20;
+           % plot_err=w; %Comment out-----------
             w = 1./w.^2;
             w(isinf(w))=NaN;
+            %opts.Weights = w;   %Comment out-----------
             
             y_label = sprintf('-ln(P (\\theta, %d nm))', l);
             x_label = 'Angle (Rad)';
@@ -314,26 +317,26 @@ calculate_angle_hist(sampled_segments, rng );
         gof = gof.rsquare;
         ci = confint(fitresults);
         ef = (ci(2)-ci(1))/2;
-    
-%         if plt
-%             f = figure('visible','off');
-%             h = plot( fitresults, x, y,'ko');
-%             hold on;
-%             if strcmp(datatype,'lnG')
-%                 errorbar(x, y, w, 'ko');
-%             end
-% 
-%             set(gca,'fontsize',18);
-%             xlabel( x_label );
-%             ylabel( y_label );
-%             %         annotation('textbox',[0.2, 0.8, .1,.1], 'String', corr_fit);
-% %           saveimage(f, ['WLC-' tit '_' num2str(l)], '-depsc',dirname);
-%             
-%             figure; plot(output.residuals,'o')
-%             set(gca,'fontsize',18,'fontweight','bold');
-%             xlabel( 'Length (nm)' );
-%             ylabel( y_label );
-%         end
+%Comment out below this----------------------
+         if plt
+             f = figure('visible','off');
+             h = plot( fitresults, x, y,'ko');
+             hold on;
+             if strcmp(datatype,'lnG')
+                 errorbar(x, y, w, 'ko');
+             end
+
+             set(gca,'fontsize',18);
+             xlabel( x_label );
+             ylabel( y_label );
+%                      annotation('textbox',[0.2, 0.8, .1,.1], 'String', corr_fit);
+            saveimage(f, ['WLC-' tit '_' num2str(l)], '-depsc',dirname);
+             
+             figure; plot(output.residuals,'o')
+             set(gca,'fontsize',18,'fontweight','bold');
+             xlabel( 'Length (nm)' );
+             ylabel( y_label );
+         end
     end
 
     %function [lp,rw,Jw,Sigmaw,msew] = fit_WLC(datatype, x, y, w, low, high, l, plt)
