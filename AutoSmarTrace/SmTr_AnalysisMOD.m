@@ -29,7 +29,7 @@ low_limit = LL;
 % WLC fit upper limit
 high_limit = 200;
 % WLC fit start point
-start_point = 50;
+start_point = 80; %Had it to 50 for a bit
 % cWLC lower limit for k then lp
 curve_low = [0 0];
 % cWLC high limit for k then lp

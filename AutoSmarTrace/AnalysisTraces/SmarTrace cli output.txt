@@ -1,0 +1,145 @@
+Noisy301.jpg run on SmarTrace cli output
+
+arclen =
+
+  140.9399
+
+
+arclen =
+
+  139.9471
+
+
+arclen =
+
+  140.9224
+
+
+arclen =
+
+  137.9185
+
+
+arclen =
+
+  140.9436
+
+
+arclen =
+
+  140.9492
+
+
+arclen =
+
+  138.9456
+
+
+arclen =
+
+  141.9377
+
+
+arclen =
+
+   95.9482
+
+
+arclen =
+
+  141.9021
+
+
+arclen =
+
+  139.9303
+
+
+arclen =
+
+  140.9380
+
+
+arclen =
+
+  138.9464
+
+
+arclen =
+
+  140.8957
+
+
+arclen =
+
+  140.9053
+
+
+arclen =
+
+  141.9357
+
+
+arclen =
+
+  131.9327
+
+
+arclen =
+
+  140.9531
+
+
+arclen =
+
+  146.9222
+
+
+arclen =
+
+  147.9122
+
+
+arclen =
+
+  143.9408
+
+
+arclen =
+
+  138.9478
+
+
+arclen =
+
+  140.9435
+
+
+arclen =
+
+  104.9433
+
+
+arclen =
+
+  139.9253
+
+
+arclen =
+
+  151.9281
+
+
+arclen =
+
+  108.9350
+
+
+arclen =
+
+  139.9355
+
+
+arclen =
+
+  134.9170

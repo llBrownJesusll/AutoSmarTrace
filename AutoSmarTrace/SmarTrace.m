@@ -336,8 +336,18 @@ for ll=1:length(Xsp)
     Pxflat = reshape(Px,1,[]); %grid x points into a list
     Pyflat = reshape(Py,1,[]);
     % NRtest 
-    pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'cubic')'; 
-%     pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'nearest')'; 
+
+% Removing DIPimage dependices by removing the pkget_subpixel logic============================================
+
+    %pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'cubic')'; 
+%     pts = pkget_subpixel(im1, [Pxflat ; Pyflat]', 'nearest')';
+    PxPyflat = num2cell([Pxflat ; Pyflat]', 1);
+    PxPyflat = PxPyflat([2,1,3:end]);
+    pts = interpn(double(A), PxPyflat{:}, 'cubic');
+
+
+%==============================================================================================================
+
     pts = reshape(pts,length(prange),length(trange)); % intensities at the grid points
     
     % % direct pixel calculations
@@ -620,6 +630,12 @@ Xsp1 = handles.Xsp1;
 Ysp1 = handles.Ysp1;
 
 plt = plot(Xsp1/nmperpx, Ysp1/nmperpx, 'k--','linewidth',1);
+
+%Add chain number; Previously ommited from the logic of this version of SmarTrace===================================================================
+text(x_norm(1)/nmperpx, y_norm(1)/nmperpx, num2str(chain_n),'HorizontalAlignment', 'right', 'Color', 'g', 'FontSize', 20);
+%===================================================================================================================================================
+
+
 handles.chain_plots{chain_n,plot_nn} = plt;
 plot_nn = plot_nn+1;
 

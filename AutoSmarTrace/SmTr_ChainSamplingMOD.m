@@ -22,7 +22,7 @@ max_size = 200;
 outputstruct = struct();
 outputstruct.sampled_segments = cell(0,0);
 
-pixel_trim = 1; %first/last pixels to be excluded from the chains
+pixel_trim = 5; %first/last pixels to be excluded from the chains; 1 initially
 
 data = load(FN);
 n_chains = 0;

@@ -36,6 +36,44 @@ if ~isempty(varargin) && strcmp(varargin{1},'EM')
     pt_sep = 40;
 end
 
+% ---------------------------------------------------------------
+% Debug Configuration (moved from in-line blocks)
+% - DEBUG_CHAIN_FILTER: restrict debug to specific global chain IDs (empty = all)
+% - DEBUG_PLOTS: enable light, per-point local zoom/patch plots
+% - PLOT_EVERY: stride for per-point debug visuals
+% - DEBUG_STAGE_PLOTS: heavy visualisations (heatmaps/overlays/comparisons)
+% - CENTROID_DEBUG: diagnostics from centroid06 (patch heatmaps, snapshots)
+DEBUG_CONFIG = struct();
+% Which chains to visualize (global chain indices); empty means all
+DEBUG_CONFIG.DEBUG_CHAIN_FILTER = [];
+% Lightweight per-point patch diagnostics (pre-/post-sampling zooms)
+DEBUG_CONFIG.DEBUG_PLOTS = false;
+% Plot stride for lightweight diagnostics
+DEBUG_CONFIG.PLOT_EVERY = 1;
+% Heavy stage visualizations: heatmaps, overlays, and deltas
+DEBUG_CONFIG.DEBUG_STAGE_PLOTS = struct( ...
+    'enabled', false, ...            % enable stage heatmaps/overlays
+    'plotEvery', 10, ...            % stride for stage plots
+    'figureBase', 140, ...          % base figure ID for stage heatmaps
+    'overlayFig', 150, ...          % figure ID for image overlay of traces
+    'deltaFig', 151, ...            % figure ID for offsets/deltas plot
+    'focusChains', [1 2], ...       % limit heavy plots to these chains
+    'captureHeatmaps', true ...     % store stage heatmaps/snapshots
+);
+% Centroid diagnostics from centroid06 (spot selection / patch snapshots)
+DEBUG_CONFIG.CENTROID_DEBUG = struct( ...
+    'enabled', false, ...           % enable centroid diagnostics
+    'plotEvery', 1, ...             % stride for centroid plots
+    'figureBase', 205, ...          % base figure for centroid debug
+    'figureStride', 50, ...         % stride between centroid figures
+    'mode', 'both', ...             % centroid display mode
+    'captureData', true, ...        % capture snapshots/data
+    'spotColumn', 'argmax', ...     % spot selection column
+    'focusChains', [1 2], ...       % limit to these chains (if set)
+    'centroidFigureBase', 200, ...  % figure base for centroid snapshots
+    'centroidFigureStride', 20 ...  % stride for centroid snapshots
+);
+
 %{
 Loop the script until flag <= 2. When traced chain has sections with curvature below certain threshold, tracing too many details/overfit
 -> change the seperation distance (pt_sep 1 to 3) and increment flag by 0.5.
@@ -48,6 +86,8 @@ while flag < 2
 clc
 handles = struct; %Handles store any data throughout processing (current image, resolution, output file name, results etc.)
 handles.nmperpx = nmperpix; %Appends the size of one pixel into the handles struct
+% Attach centralized debug configuration so subfunctions can use it
+handles.debugConfig = DEBUG_CONFIG;
 imds = imageDatastore(input_path); %Automatically manages collections of images in the input folder. [Find, Track, provide access to iterate etc.]
 FilePaths = imds.Files; %Pulls the file paths of images from imds struct into the variable
 N_images = length(imds.Files); %Number of images found
@@ -261,30 +301,17 @@ end
 % to the resulting points.
 function handles = getpoints(handles,directData,chains,count,pt_sep)
 
-%Adding debugging code to check the zoom on each LL--------------------
-DEBUG_CHAIN_FILTER = [];             % [] => debug all chains
-DEBUG_PLOTS = false;                  % per-point patch diagnostics
-PLOT_EVERY = 1;
-
-DEBUG_STAGE_PLOTS.enabled = true;    % heavy stage visualisations (heatmaps/overlays)
-DEBUG_STAGE_PLOTS.plotEvery = 10;
-DEBUG_STAGE_PLOTS.figureBase = 140;
-DEBUG_STAGE_PLOTS.overlayFig = 150;
-DEBUG_STAGE_PLOTS.deltaFig = 151;
-DEBUG_STAGE_PLOTS.focusChains = [1 2];
-DEBUG_STAGE_PLOTS.captureHeatmaps = true;
-
-CENTROID_DEBUG.enabled = false;
-CENTROID_DEBUG.plotEvery = 1;
-CENTROID_DEBUG.figureBase = 205;
-CENTROID_DEBUG.figureStride = 50;
-CENTROID_DEBUG.mode = 'both';
-CENTROID_DEBUG.captureData = true;
-CENTROID_DEBUG.spotColumn = 'argmax';
-CENTROID_DEBUG.focusChains = [1 2];
-CENTROID_DEBUG.centroidFigureBase = 200;
-CENTROID_DEBUG.centroidFigureStride = 20;
-%Added above-------------------------------------------------------------
+% Debug configuration (centralized at top of file)
+% - Chain filter: restricts which chains render debug
+% - Lightweight per-point plots: local zooms/patch intensity visuals
+% - Stage plots: heavy heatmaps, overlays, offset deltas
+% - Centroid debug: diagnostics from centroid06
+cfg = handles.debugConfig;
+DEBUG_CHAIN_FILTER = cfg.DEBUG_CHAIN_FILTER;   % [] => debug all chains
+DEBUG_PLOTS = cfg.DEBUG_PLOTS;                 % per-point patch diagnostics
+PLOT_EVERY = cfg.PLOT_EVERY;                   % stride for DEBUG_PLOTS
+DEBUG_STAGE_PLOTS = cfg.DEBUG_STAGE_PLOTS;     % heavy visualisations
+CENTROID_DEBUG = cfg.CENTROID_DEBUG;           % centroid06 diagnostics
 
 cn = count(1);
 Ntxt = count(2);

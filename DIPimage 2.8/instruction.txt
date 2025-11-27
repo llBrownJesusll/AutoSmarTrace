@@ -1,0 +1,10 @@
+These instructions explain how to start DIPimage in MATLAB:
+
+1. start MATLAB
+2. execute the command run('C:\Users\Ghadeer\Desktop\RESEARCH\DIPimage 2.8\dipstart.m')
+
+Optionally, you can create or modify the startup.m file in
+the default working directory of MATLAB to run 'dipstart.m'
+automatically at the beginning of every session.
+
+14/8/2010
